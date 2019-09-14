@@ -74,7 +74,19 @@ setup_caddy(){
   # create Caddyfile
   # error log?
   cat >/etc/caddy/Caddyfile <<_EOF_
-$SITE {
+http://$SITE {
+  root /var/www
+  gzip {
+      ext .html .htm
+      level 6
+  }
+  proxy /w localhost:10000 {
+    websocket
+    header_upstream -Origin
+  }
+}
+
+https://$SITE {
   root /var/www
   gzip {
       ext .html .htm
@@ -150,6 +162,10 @@ setup_v2ray(){
 
   # backup the config file just for fallback and testing if needed
   \cp /etc/v2ray/config.json /etc/v2ray/config.json.bak
+  \cp /etc/systemd/system/v2ray.service /etc/systemd/system/v2ray.service.bak
+  chown -R www-data:www-data /var/log/v2ray/
+
+  sed -i -e 's|^# User=.*|User=www-data|g' -e 's|^# Group=.*|Group=www-data|g' /etc/systemd/system/v2ray.service
 
   # get the UUID
   # the following should work too
@@ -247,6 +263,7 @@ _EOF_
   /usr/bin/v2ray/v2ray --test --config /etc/v2ray/config.json
 
   # enabling the v2ray service
+  systemctl daemon-reload
   systemctl restart v2ray
   systemctl enable v2ray
 
@@ -307,11 +324,45 @@ _EOF_
                 "level" : 0
               }
             ],
+            "port" : 80
+          }
+        ]
+      },
+      "tag" : "ws $SITE 80",
+      "streamSettings" : {
+        "network" : "ws",
+        "wsSettings" : {
+          "path" : "/w",
+          "headers" : {
+            "Host" : "$SITE"
+          }
+        }
+      }
+    },
+    {
+      "sendThrough" : "0.0.0.0",
+      "mux" : {
+        "enabled" : false,
+        "concurrency" : 8
+      },
+      "protocol" : "vmess",
+      "settings" : {
+        "vnext" : [
+          {
+            "address" : "$SITE",
+            "users" : [
+              {
+                "id" : "$UUID",
+                "alterId" : 64,
+                "security" : "auto",
+                "level" : 0
+              }
+            ],
             "port" : 443
           }
         ]
       },
-      "tag" : "ws",
+      "tag" : "ws $SITE 443",
       "streamSettings" : {
         "tlsSettings" : {
           "serverName" : "$SITE"
@@ -349,7 +400,7 @@ _EOF_
           }
         ]
       },
-      "tag" : "h2",
+      "tag" : "h2 $SITE 443",
       "streamSettings" : {
         "tlsSettings" : {
           "serverName" : "$SITE"
