@@ -18,6 +18,7 @@ sudo ./setup.sh -d example.com -e <cloudflare email> -k <cloudflare api key>
 ----
 
 The script will do the following :
+
 . add/update A and AAAA records with doamin managed in Cloudflare
 . Install Caddy as service 
 . Configuarate Caddy to apply SSL certificate
