@@ -180,7 +180,7 @@ setup_v2ray(){
   "log" : {
     "access": "/var/log/v2ray/access.log",
     "error": "/var/log/v2ray/error.log",
-    "loglevel": "debug"
+    "loglevel": "none"
   },
   "inbounds": [
     {

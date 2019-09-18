@@ -1,0 +1,30 @@
+= v2ray installation script
+
+:toc:
+:toc-placement!:
+
+The script v2ray_setup.sh provide simple way to install v2ray + caddy + ws/http2 + cloudflare.
+
+toc::[]
+
+== How to run
+Basic usage:
+[source, bash]
+----
+curl -L -s https://git.io/Je3en > setup.sh
+sudo PARAM_CF_KEY="<cloudflare api key>" ./setup.sh -d example.com -e <cloudflare email>
+# or if not in shared environment
+sudo ./setup.sh -d example.com -e <cloudflare email> -k <cloudflare api key>
+----
+
+The script will do the following :
+. add/update A and AAAA records with doamin managed in Cloudflare
+. Install Caddy as service 
+. Configuarate Caddy to apply SSL certificate
+. Install v2ray as service
+. Configuarate v2ray to have
+  .. Websocket on port 80 (HTTP)
+  .. Websocket on port 443 (HTTPS)
+  .. HTTP/2 on port 443 (HTTPS)
+. produce v2ray client config as client_config.json in the current folder
+
