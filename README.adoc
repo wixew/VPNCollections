@@ -1,0 +1,8 @@
+# VPNCollections
+
+:toc:
+:toc-placement!:
+
+VPN Collections for installing different VPN/Proxy on Centos 7.
+
+toc::[]
