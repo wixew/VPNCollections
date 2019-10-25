@@ -1,16 +1,18 @@
 #!/bin/bash
 
+# shellcheck disable=SC2155
+
 ORI_USER="$(who am i | awk '{print $1}')"
-ORI_USER_HOME="$( getent passwd $ORI_USER | cut -d: -f6)"
+ORI_USER_HOME="$( getent passwd "$ORI_USER" | cut -d: -f6)"
 
 #update/create dns record
 update_dns_record(){
 
   PUB_IPv4="$(curl -s -4 ifconfig.co)"
-  PRI_IPv4="$(ip route get 8.8.8.8| awk '{print $7}')"
+#PRI_IPv4="$(ip route get 8.8.8.8| awk '{print $7}')"
 
   PUB_IPv6="$(curl -s -6 ifconfig.co)"
-  PRI_IPv6="$(ip route get 2001:4860:4860::8844| awk '{print $9}')"
+#PRI_IPv6="$(ip route get 2001:4860:4860::8844| awk '{print $9}')"
 
   local JSON="$(curl -sS "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" -H "X-Auth-Email: $CF_EMAIL" -H "X-Auth-Key: $CF_KEY")"
   local ZONE_ID="$(sed -ne 's/.*"id":"\(.*\)","name":"'"$DOMAIN"'".*/\1/p' <<< $JSON)"
@@ -270,7 +272,7 @@ _EOF_
   CADDY_KEY="/etc/ssl/caddy/acme/acme-v02.api.letsencrypt.org/sites/$SITE/$SITE.key"
 
   # need to wait caddy to get the ssl certificate 
-  while [ \( ! -f "$CADDY_CRT" \) -o \( ! -f "$CADDY_KEY" \)  ]
+  while [ \( ! -f "$CADDY_CRT" \) ] || [ \( ! -f "$CADDY_KEY" \) ]
   do
     sleep 10
     echo 'Waiting Caddy certificate and key...'
@@ -523,23 +525,26 @@ setup_haproxy(){
   yum groupinstall -y "Development Tools"
   yum install -y gcc-c++ openssl-devel pcre-static pcre-devel libtermcap-devel ncurses-devel libevent-devel readline-devel zlib-devel wget systemd-devel
   
-  # build lua
-  LUA_VER='5.3.5'
-  curl -sS -R -O http://www.lua.org/ftp/lua-"$LUA_VER".tar.gz
-  tar zxf lua-"$LUA_VER".tar.gz
-  cd lua-"$LUA_VER"
-  make linux install test
-
-  # build lua
-  cd ..
-  HAPROXY_VER='2.0.8'
-  curl -sS -R -O http://www.haproxy.org/download/2.0/src/haproxy-"$HAPROXY_VER".tar.gz
-  tar xzf haproxy-"$HAPROXY_VER".tar.gz
-  cd haproxy-"$HAPROXY_VER"/
-  make clean
-  make -j"$(nproc)" TARGET=linux-glibc \
-    USE_OPENSSL=1 USE_ZLIB=1 USE_LUA=1 USE_PCRE=1 USE_SYSTEMD=1
-  make install
+  (
+    # build lua
+    LUA_VER='5.3.5'
+    curl -sS -R -O http://www.lua.org/ftp/lua-"$LUA_VER".tar.gz
+    tar zxf lua-"$LUA_VER".tar.gz
+    cd lua-"$LUA_VER" || exit
+    make linux install test
+  )
+  
+  (
+    #build haproxy
+    HAPROXY_VER='2.0.8'
+    curl -sS -R -O http://www.haproxy.org/download/2.0/src/haproxy-"$HAPROXY_VER".tar.gz
+    tar xzf haproxy-"$HAPROXY_VER".tar.gz
+    cd haproxy-"$HAPROXY_VER"/ || exit
+    make clean
+    make -j"$(nproc)" TARGET=linux-glibc \
+      USE_OPENSSL=1 USE_ZLIB=1 USE_LUA=1 USE_PCRE=1 USE_SYSTEMD=1
+    make install
+  )
 
   # service file
   sed -e 's:@SBINDIR@:'/usr/local/sbin':' contrib/systemd/haproxy.service.in > /etc/systemd/system/haproxy.service
@@ -706,7 +711,9 @@ main() {
     fi
   }
 
-  if [[ -n "${@}" ]] ; then
+  if [ $# -eq 0 ] ; then
+    test_env_vars || command_help >&2
+  else
     while (( ${#} )); do
       case "${1}" in
         --help|-h)
@@ -774,8 +781,6 @@ main() {
 
       shift 1
     done
-  else
-    test_env_vars || command_help >&2
   fi
 
   run
