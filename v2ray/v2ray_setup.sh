@@ -234,6 +234,27 @@ setup_v2ray(){
           ]
         }
       }
+    },
+    {
+      "port": 12000,
+      "listen":"127.0.0.1",
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "4707d256-197c-46d3-a04e-7dc291410409",
+            "alterId": 64
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "h2",
+        "security": "none",
+        "httpSettings": {
+          "path": "/h",
+          "host": ["$SITE"]
+        }
+      }
     }
   ],
   "outbounds": [
@@ -414,6 +435,44 @@ _EOF_
         "security" : "tls",
         "network" : "http"
       }
+    },
+    {
+      "sendThrough" : "0.0.0.0",
+      "mux" : {
+        "enabled" : false,
+        "concurrency" : 8
+      },
+      "protocol" : "vmess",
+      "settings" : {
+        "vnext" : [
+          {
+            "address" : "$SITE",
+            "users" : [
+              {
+                "id" : "$UUID",
+                "alterId" : 64,
+                "security" : "auto",
+                "level" : 0
+              }
+            ],
+            "port" : 8443
+          }
+        ]
+      },
+      "tag" : "h2 $SITE 8443",
+      "streamSettings" : {
+        "tlsSettings" : {
+          "serverName" : "$SITE"
+        },
+        "httpSettings" : {
+          "path" : "/h",
+          "host" : [
+            "$SITE"
+          ]
+        },
+        "security" : "tls",
+        "network" : "http"
+      }
     }
   ],
   "routing" : {
@@ -458,6 +517,97 @@ _EOF_
   }
 }
 _EOF_
+}
+
+setup_haproxy(){
+  yum groupinstall -y "Development Tools"
+  yum install -y gcc-c++ openssl-devel pcre-static pcre-devel libtermcap-devel ncurses-devel libevent-devel readline-devel zlib-devel wget systemd-devel
+  
+  # build lua
+  LUA_VER='5.3.5'
+  curl -sS -R -O http://www.lua.org/ftp/lua-"$LUA_VER".tar.gz
+  tar zxf lua-"$LUA_VER".tar.gz
+  cd lua-"$LUA_VER"
+  make linux install test
+
+  # build lua
+  cd ..
+  HAPROXY_VER='2.0.8'
+  curl -sS -R -O http://www.haproxy.org/download/2.0/src/haproxy-"$HAPROXY_VER".tar.gz
+  tar xzf haproxy-"$HAPROXY_VER".tar.gz
+  cd haproxy-"$HAPROXY_VER"/
+  make clean
+  make -j"$(nproc)" TARGET=linux-glibc \
+    USE_OPENSSL=1 USE_ZLIB=1 USE_LUA=1 USE_PCRE=1 USE_SYSTEMD=1
+  make install
+
+  # service file
+  sed -e 's:@SBINDIR@:'/usr/local/sbin':' contrib/systemd/haproxy.service.in > /etc/systemd/system/haproxy.service
+
+  mkdir /etc/haproxy/
+  mkdir -p /var/lib/haproxy/dev/
+  chown -R nobody:nobody /var/lib/haproxy
+  cat >/etc/haproxy/haproxy.cfg <<_EOF_
+global
+  # intermediate configuration, tweak to your needs
+  ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+  ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+  ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11 no-tls-tickets
+
+  ssl-default-server-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+  ssl-default-server-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+  ssl-default-server-options no-sslv3 no-tlsv10 no-tlsv11 no-tls-tickets
+
+  log /dev/log local0 notice
+  chroot /var/lib/haproxy
+  stats timeout 30s
+  user nobody
+  group nobody
+  daemon
+  maxconn 65535
+  nbproc 2
+  tune.ssl.default-dh-param 2048
+
+defaults
+  log global
+  mode http
+  option httplog
+  option dontlognull
+  option  nolinger
+  retries 3
+  option redispatch
+  timeout connect 5000
+  timeout client 50000
+  timeout server 50000
+  option http-use-htx
+
+frontend waiter
+  mode http
+  bind *:8443 ssl crt /etc/v2ray/v2ray.pem alpn h2,http/1.1
+  default_backend local_node
+
+backend local_node
+  mode http
+  server localhost1 127.0.0.1:12000 proto h2
+_EOF_
+
+  cat >/etc/rsyslog.d/haproxy.conf <<-_EOF_
+\$AddUnixListenSocket /var/lib/haproxy/dev/log
+
+local0.* -/var/log/haproxy/haproxy_0.log
+
+if (\$programname == 'haproxy') then -/var/log/haproxy/haproxy.log
+& ~
+_EOF_
+
+  systemctl restart rsyslog
+
+  systemctl daemon-reload
+  systemctl start haproxy
+  systemctl enable haproxy
+
+  firewall-cmd --permanent --zone=public --add-port=8443/tcp
+  firewall-cmd --reload
 }
 
 # verify configuration values
