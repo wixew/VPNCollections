@@ -1,8 +1,8 @@
 #!/bin/bash
-set -eu
-set -o pipefail
+#set -eu
+#set -o pipefail
+#set -x
 
-# set -x
 sed -i 's/SELINUX=.*/SELINUX=disabled/' /etc/selinux/config
 setenforce 0
 
