@@ -28,5 +28,5 @@ The script will do the following :
   .. Websocket on port 80 (HTTP)
   .. Websocket on port 443 (HTTPS)
   .. HTTP/2 on port 443 (HTTPS)
-. produce v2ray client config as client_config.json in the current folder
+. produce v2ray client config as client_config.json in the home folder of user which using sudo command.
 

@@ -649,6 +649,45 @@ print_config(){
   echo "Certificate Email : $CERT_EMAIL"
 }
 
+#update/create dns record
+update_dns_record(){
+
+  PUB_IPv4="$(curl -s -4 ifconfig.co)"
+#PRI_IPv4="$(ip route get 8.8.8.8| awk '{print $7}')"
+
+  PUB_IPv6="$(curl -s -6 ifconfig.co)"
+#PRI_IPv6="$(ip route get 2001:4860:4860::8844| awk '{print $9}')"
+
+  local JSON="$(curl -sS "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" -H "X-Auth-Email: $CF_EMAIL" -H "X-Auth-Key: $CF_KEY")"
+  local ZONE_ID="$(sed -ne 's/.*"id":"\(.*\)","name":"'"$DOMAIN"'".*/\1/p' <<< $JSON)"
+
+  if [[ -z "$ZONE_ID" ]]
+  then
+    echo "Cannot get Zone ID. Will not update DNS record"
+  else
+    echo "Will try update DNS record by hostname";
+    local JSON="$(curl -sS -X GET "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?type=A&name=$SITE" -H "X-Auth-Email: $CF_EMAIL" -H "X-Auth-Key: $CF_KEY")"
+    local IPv4_ID="$(sed -ne 's/.*"id":"\(.*\)","type":"A","name":".*'"$DOMAIN"'",.*/\1/p' <<< $JSON)"
+
+    if [[ -z "$IPv4_ID" ]]
+    then
+      curl -sS -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" -H "X-Auth-Email: $CF_EMAIL" -H "X-Auth-Key: $CF_KEY" -H "Content-Type: application/json" --data "{\"type\":\"A\",\"name\":\"$SITE\",\"content\":\"${PUB_IPv4}\",\"ttl\":1}"
+    else
+      curl -sS -X PUT "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${IPv4_ID}" -H "X-Auth-Email: $CF_EMAIL" -H "X-Auth-Key: $CF_KEY" -H "Content-Type: application/json" --data "{\"type\":\"A\",\"name\":\"$SITE\",\"content\":\"${PUB_IPv4}\",\"ttl\":1}"
+    fi
+
+    local JSON="$(curl -sS -X GET "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records?type=AAAA&name=$SITE" -H "X-Auth-Email: $CF_EMAIL" -H "X-Auth-Key: $CF_KEY")"
+    local IPv6_ID="$(sed -ne 's/.*"id":"\(.*\)","type":"AAAA","name":".*'"$DOMAIN"'",.*/\1/p' <<< $JSON)"
+
+    if [[ -z "$IPv6_ID" ]]
+    then
+      curl -sS -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" -H "X-Auth-Email: $CF_EMAIL" -H "X-Auth-Key: $CF_KEY" -H "Content-Type: application/json" --data "{\"type\":\"AAAA\",\"name\":\"$SITE\",\"content\":\"${PUB_IPv6}\",\"ttl\":1}"
+    else
+      curl -sS -X PUT "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${IPv6_ID}" -H "X-Auth-Email: $CF_EMAIL" -H "X-Auth-Key: $CF_KEY" -H "Content-Type: application/json" --data "{\"type\":\"AAAA\",\"name\":\"$SITE\",\"content\":\"${PUB_IPv6}\",\"ttl\":1}"
+    fi
+  fi
+}
+
 run(){
   verify_config
   print_config
