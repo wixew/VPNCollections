@@ -1,0 +1,26 @@
+= v2ray installation script
+
+:toc:
+:toc-placement!:
+
+The script ocserv_setup.sh provide simple way to install ocserv + cloudflare.
+
+toc::[]
+
+== How to run
+Basic usage:
+[source, bash]
+----
+sudo -i
+curl -L -s https://git.io/JeVp4 > setup.sh
+PARAM_CF_KEY="<cloudflare api key>" PARAM_CLIENT_PW="<client-certification-password>" ./setup.sh -d example.com -e <cloudflare email>
+# or if not in shared environment
+sudo ./setup.sh -d example.com -e <cloudflare email> -k <cloudflare api key> -ccp <client-certification-password>
+----
+
+The script will do the following :
+
+. add/update A and AAAA records with doamin managed in Cloudflare
+. Install ocserv as service
+. Configuarate ocserv service
+. produce client certificate in the home folder which using sudo command.
