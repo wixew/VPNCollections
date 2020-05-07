@@ -13,6 +13,7 @@ Basic usage:
 ----
 sudo -i
 curl -L -s https://git.io/Je3en > setup.sh
+chmod +x ./setup.sh
 PARAM_CF_KEY="<cloudflare api key>" ./setup.sh -d example.com -e <cloudflare email>
 # or if not in shared environment
 sudo ./setup.sh -d example.com -e <cloudflare email> -k <cloudflare api key>

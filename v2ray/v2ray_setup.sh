@@ -135,7 +135,7 @@ _EOF_
   chmod 555 /var/www
 
   # get service file and make the configuration 
-  curl -L -s https://raw.githubusercontent.com/caddyserver/caddy/master/dist/init/linux-systemd/caddy.service | \
+  curl -L -s https://raw.githubusercontent.com/caddyserver/dist/master/init/caddy.service | \
     sed -e '/Environment=.*/a Environment=CLOUDFLARE_EMAIL='"$CF_EMAIL"'\nEnvironment=CLOUDFLARE_API_KEY='"$CF_KEY" \
     -e 's_ReadWritePaths=_ReadWriteDirectories=_g' \
     -e 's|-agree=true|-agree=true -email='"$CERT_EMAIL"'|g' \
