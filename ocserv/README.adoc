@@ -13,7 +13,7 @@ Basic usage:
 ----
 sudo -i
 # in shared environment 
-curl -L -s https://git.io/JeVp4 > setup.sh
+curl -L -s https://git.io/Jf4um > setup.sh
 chmod +x ./setup.sh
 PARAM_CF_KEY="<cloudflare-api-key>" PARAM_CLIENT_PW="<client-certification-password>" ./setup.sh -d example.com -e <cloudflare-email>
 ----
