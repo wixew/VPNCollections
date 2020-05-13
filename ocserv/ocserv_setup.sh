@@ -1,6 +1,6 @@
 #!/bin/bash
 
-OCSERV_VER='0.12.4'
+OCSERV_VER='1.0.1'
 
 ORI_USER="$(who am i | awk '{print $1}')"
 ORI_USER_HOME="$( getent passwd "$ORI_USER" | cut -d: -f6)"
@@ -11,6 +11,7 @@ OCSERV_USER="$(hostname)_$ORI_USER"
 ocserv_dependencies(){
   yum update -y -q -e 0
   yum install -y -q -e 0 epel-release
+  yum config-manager --set-enabled PowerTools
   yum install -y -q -e 0 gnutls-devel libev-devel \
     tcp_wrappers-devel pam-devel lz4-devel libseccomp-devel \
     readline-devel libnl3-devel krb5-devel radcli-devel \
@@ -43,6 +44,7 @@ oscerv_build_install(){
 oscerv_yum_install(){
   yum update -y -q -e 0
   yum install -y -q -e 0 epel-release
+  yum config-manager --set-enabled PowerTools
   yum install -y -q -e 0 ocserv vim oathtool qrencode
   yum groupinstall -y -q -e 0 'Development Tools'
   systemctl enable ocserv
@@ -62,7 +64,7 @@ coreutils_update(){
 
 letsencrypt_run(){
   echo 'Starting runing LetsEncrypt Certbot'
-  yum install -y -q -e 0 certbot python2-certbot-dns-cloudflare
+  yum install -y -q -e 0 certbot python3-certbot-dns-cloudflare
   (
     echo "dns_cloudflare_email = $CF_EMAIL"
     echo "dns_cloudflare_api_key = $CF_KEY"
@@ -132,7 +134,7 @@ ca-cert = /etc/ocserv/ca.crt
 cert-user-oid = 2.5.4.3
 
 #RSA
-tls-priorities = "SECURE256:%PROFILE_MEDIUM:%SERVER_PRECEDENCE:-ECDHE-ECDSA:-DHE-RSA:-RSA:-AES-256-CBC:-CAMELLIA-256-CBC:-VERS-TLS1.1:-VERS-TLS1.0:-VERS-DTLS1.0:-VERS-DTLS1.2"
+tls-priorities = "%SERVER_PRECEDENCE:SECURE256:%PROFILE_ULTRA:+VERS-TLS1.3:+VERS-TLS1.2:-ECDHE-ECDSA:-DHE-RSA:-RSA:-AES-256-CBC:-CAMELLIA-256-CBC:-VERS-TLS1.1:-VERS-TLS1.0:-VERS-DTLS1.0:-VERS-DTLS1.2"
 
 #ECC
 #tls-priorities = "SECURE256:%SERVER_PRECEDENCE:-ECDHE-RSA:-DHE-RSA:-RSA:-AES-256-CBC:-CAMELLIA-256-CBC:-VERS-TLS1.1:-VERS-TLS1.0:-VERS-DTLS1.0:-VERS-DTLS1.2"
