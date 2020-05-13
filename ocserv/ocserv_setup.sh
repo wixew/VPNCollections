@@ -2,7 +2,7 @@
 
 OCSERV_VER='1.0.1'
 
-ORI_USER="$(who am i | awk '{print $1}')"
+ORI_USER="$(logname)"
 ORI_USER_HOME="$( getent passwd "$ORI_USER" | cut -d: -f6)"
 CONFIG_DIR="$ORI_USER_HOME/$(hostname)"
 
